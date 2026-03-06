@@ -371,7 +371,7 @@ For each, respond ONLY with JSON array (no markdown):
               {[
                 ["Total", businesses.length],
                 ["Categories", new Set(businesses.map(b => b.category)).size],
-                ["Top Type", businesses.reduce((acc, b) => { acc[b.category] = (acc[b.category]||0)+1; return acc; }, {})},
+                ["Top Type", businesses.reduce((acc, b) => { acc[b.category] = (acc[b.category]||0)+1; return acc; }, {})],
               ].map(([label, val], i) => (
                 <div key={i}>
                   <div style={{ color: "#63B3ED", fontWeight: 700, fontSize: 18 }}>

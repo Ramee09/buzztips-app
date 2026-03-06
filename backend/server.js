@@ -97,6 +97,32 @@ Respond ONLY with a valid JSON array, no markdown, no explanation:
   }
 });
 
+// Geocode helper - convert address / city / zip into latitude/longitude
+app.get("/api/geocode", async (req, res) => {
+  const { address } = req.query;
+  const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
+
+  if (!GOOGLE_API_KEY) {
+    return res.status(500).json({ error: "Google Places API key not configured" });
+  }
+
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json`;
+    const params = { address, key: GOOGLE_API_KEY };
+    const { data } = await axios.get(url, { params });
+
+    if (data.status !== "OK" || !data.results.length) {
+      return res.status(404).json({ error: "Location not found" });
+    }
+
+    const loc = data.results[0].geometry.location;
+    res.json({ lat: loc.lat, lng: loc.lng, formatted_address: data.results[0].formatted_address });
+  } catch (err) {
+    console.error("Geocoding error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Health check
 app.get("/health", (req, res) => res.json({ status: "ok", service: "BuzzTips API" }));
 

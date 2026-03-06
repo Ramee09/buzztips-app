@@ -72,20 +72,48 @@ export default function App() {
     );
   }, []);
 
-  // Fetch businesses from backend
+  // Fetch businesses from backend.  If the user has typed a location string (city, zip, etc.)
+  // we first geocode it to get a lat/lng and recenter the map.  Numeric-only queries (e.g.
+  // a zip code) are not forwarded as keywords to the Places API since they confuse the
+  // keyword filter.
   const fetchBusinesses = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/businesses?lat=${location[0]}&lng=${location[1]}&query=${searchQuery}`);
+      // determine base location for the search
+      let latlng = location;
+      if (searchQuery) {
+        try {
+          const geoRes = await fetch(`/api/geocode?address=${encodeURIComponent(searchQuery)}`);
+          if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            latlng = [geoData.lat, geoData.lng];
+            setLocation(latlng); // move map center to result
+          }
+        } catch (ge) {
+          // if geocoding fails we'll just keep the previous coords
+          console.warn("geocode failed", ge);
+        }
+      }
+
+      // if the query is purely numeric (zip code) we don't pass it as keyword to the
+      // places endpoint since that tends to return nothing; the geocoding above has
+      // already moved us to the right place.
+      const keyword = searchQuery && !/^\d+$/.test(searchQuery) ? searchQuery : "";
+      const url = `/api/businesses?lat=${latlng[0]}&lng=${latlng[1]}${
+        keyword ? `&query=${encodeURIComponent(keyword)}` : ""
+      }`;
+      const res = await fetch(url);
       const data = await res.json();
       setBusinesses(data.businesses || []);
     } catch (e) {
       // Demo fallback data
-      setBusinesses(DEMO_BUSINESSES.map(b => ({
-        ...b,
-        lat: location[0] + (Math.random() - 0.5) * 0.01,
-        lng: location[1] + (Math.random() - 0.5) * 0.01,
-      })));
+      setBusinesses(
+        DEMO_BUSINESSES.map((b) => ({
+          ...b,
+          lat: location[0] + (Math.random() - 0.5) * 0.01,
+          lng: location[1] + (Math.random() - 0.5) * 0.01,
+        }))
+      );
     }
     setLoading(false);
   };

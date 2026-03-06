@@ -166,6 +166,7 @@ Checkout → Test → Build Images → Push to ACR → Deploy to AKS → Smoke T
 
 ```
 GET  /api/businesses?lat=40.71&lng=-74.00&radius=1000  → List nearby businesses
+GET  /api/geocode?address=10001             → Convert city/zip/term → { lat, lng }
 POST /api/suggest   { businesses, location }            → AI business suggestions
 GET  /health                                             → Health check
 ```

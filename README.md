@@ -4,6 +4,10 @@
 
 **Live at:** [https://buzztips.com](https://buzztips.com)
 
+> Find all businesses near you, visualize them on a map, and get AI-powered suggestions for businesses that would thrive in any area.
+
+**Live at:** [https://buzztips.com](https://buzztips.com)
+
 ---
 
 ## 🏗️ Architecture

@@ -1,0 +1,66 @@
+name: BuzzTips CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  ACR_LOGIN_SERVER: buzztipsacr.azurecr.io
+  AKS_CLUSTER: buzztips-aks
+  AKS_RESOURCE_GROUP: buzztips-rg
+
+jobs:
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+      - run: cd backend && npm ci && npm test
+
+  build-push:
+    name: 🐳 Build & Push
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      - name: Build & push images
+        run: |
+          TAG="${{ github.run_number }}-${GITHUB_SHA::7}"
+          docker build -t ${{ env.ACR_LOGIN_SERVER }}/buzztips-frontend:$TAG ./frontend
+          docker build -t ${{ env.ACR_LOGIN_SERVER }}/buzztips-api:$TAG ./backend
+          docker push ${{ env.ACR_LOGIN_SERVER }}/buzztips-frontend:$TAG
+          docker push ${{ env.ACR_LOGIN_SERVER }}/buzztips-api:$TAG
+          echo "IMAGE_TAG=$TAG" >> $GITHUB_ENV
+
+  deploy:
+    name: 🚀 Deploy to AKS
+    needs: build-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ env.AKS_CLUSTER }}
+      - run: |
+          kubectl set image deployment/buzztips-frontend frontend=${{ env.ACR_LOGIN_SERVER }}/buzztips-frontend:${{ env.IMAGE_TAG }} -n buzztips
+          kubectl set image deployment/buzztips-api api=${{ env.ACR_LOGIN_SERVER }}/buzztips-api:${{ env.IMAGE_TAG }} -n buzztips
+          kubectl rollout status deployment/buzztips-frontend -n buzztips
+          kubectl rollout status deployment/buzztips-api -n buzztips
